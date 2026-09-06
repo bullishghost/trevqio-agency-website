@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Admin — Trevqio Agency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FFFBF3; --ink:#231A33; --coral:#FF6B4A; --coral-dark:#E8502F;
+    --sky:#2FA9D6; --sky-tint:#E4F5FB; --sun:#FFC94A;
+    --line:#EFE6D6; --ink-soft:#5B5468;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; line-height:1.6;}
+  header.site{padding:20px 28px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:'Baloo 2',sans-serif; font-size:1.15rem; font-weight:700; text-decoration:none; color:var(--ink);}
+  .brand img{height:30px; width:30px; border-radius:9px; object-fit:cover;}
+  .signout{font-size:0.88rem; color:var(--ink-soft); cursor:pointer; text-decoration:underline; background:none; border:none;}
+  .wrap{max-width:920px; margin:0 auto; padding:48px 28px 80px;}
+  h1{font-family:'Baloo 2',sans-serif; font-size:1.9rem; margin:0 0 32px;}
+  .order{background:#fff; border:2px solid var(--ink); border-radius:20px; padding:26px; margin-bottom:22px;}
+  .order-head{display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:14px;}
+  .order-head h2{font-family:'Baloo 2',sans-serif; font-size:1.1rem; margin:0;}
+  .order-head .plan{font-size:0.85rem; color:var(--ink-soft);}
+  .status-select{padding:8px 12px; border-radius:10px; border:1px solid var(--line); font-size:0.88rem; background:var(--paper); font-weight:600;}
+  .details-block{background:var(--paper); border-radius:12px; padding:14px 16px; font-size:0.92rem; margin-bottom:16px; white-space:pre-wrap;}
+  .details-block.empty{color:var(--ink-soft); font-style:italic;}
+  h3.sub{font-size:0.85rem; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin:18px 0 8px;}
+  .file-list{list-style:none; padding:0; margin:0; font-size:0.9rem;}
+  .file-list li{padding:6px 0; border-top:1px solid var(--line);}
+  .file-list li:first-child{border-top:none;}
+  .file-list a{color:var(--coral);}
+  .empty{color:var(--ink-soft); font-size:0.88rem; font-style:italic;}
+  .upload-row{display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .upload-row input[type="file"]{font-size:0.85rem;}
+  .btn{display:inline-block; padding:9px 18px; border-radius:100px; font-size:0.85rem; font-weight:700; text-decoration:none; cursor:pointer; border:none; background:var(--coral); color:#fff;}
+  .btn:hover{background:var(--coral-dark);}
+  .btn[disabled]{opacity:0.6; cursor:default;}
+  .save-note{font-size:0.82rem; color:var(--ink-soft); margin-top:6px;}
+  #not-authorized{max-width:480px; margin:100px auto; text-align:center; font-size:1rem; color:var(--ink-soft);}
+  #loading{color:var(--ink-soft); padding:40px 0; text-align:center;}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <a class="brand" href="index.html">
+    <img src="assets/trevqio-icon.png" alt="">
+    Trevqio Agency — Team
+  </a>
+  <button class="signout" id="signout">Sign out</button>
+</header>
+
+<div id="not-authorized" style="display:none;">You're not signed in as the team account, so this page isn't available to you.</div>
+
+<div class="wrap" id="main-wrap" style="display:none;">
+  <h1>Client orders</h1>
+  <div id="loading">Loading orders…</div>
+  <div id="orders"></div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  import { SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_EMAIL } from './supabase-config.js';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const STAGES = ['Submitted','In Progress','In Review','Delivered'];
+
+  async function init(){
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.email !== ADMIN_EMAIL){
+      document.getElementById('not-authorized').style.display = 'block';
+      return;
+    }
+    document.getElementById('main-wrap').style.display = 'block';
+    loadOrders();
+  }
+  init();
+
+  document.getElementById('signout').addEventListener('click', async ()=>{
+    await supabase.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  async function signedUrlsFor(bucket, files){
+    if (!files || files.length === 0) return [];
+    const out = [];
+    for (const f of files){
+      const { data } = await supabase.storage.from(bucket).createSignedUrl(f.path, 3600);
+      out.push({ name: f.name, url: data ? data.signedUrl : '#' });
+    }
+    return out;
+  }
+
+  function fileListHTML(files){
+    if (!files || files.length === 0) return '<p class="empty">None yet.</p>';
+    return '<ul class="file-list">' + files.map(f=>`<li><a href="${f.url}" target="_blank" rel="noopener">${f.name}</a></li>`).join('') + '</ul>';
+  }
+
+  async function loadOrders(){
+    const ordersEl = document.getElementById('orders');
+    const loading = document.getElementById('loading');
+    const { data: orders, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    loading.style.display = 'none';
+    if (error){ ordersEl.innerHTML = `<p class="empty">Error loading orders: ${error.message}</p>`; return; }
+    if (!orders || orders.length === 0){ ordersEl.innerHTML = '<p class="empty">No client orders yet.</p>'; return; }
+
+    ordersEl.innerHTML = '';
+    for (const order of orders){
+      const uid = order.uid;
+      const uploadLinks = await signedUrlsFor('uploads', order.files);
+      const deliverLinks = await signedUrlsFor('deliverables', order.deliverables);
+
+      const card = document.createElement('div');
+      card.className = 'order';
+      card.innerHTML = `
+        <div class="order-head">
+          <div>
+            <h2>${order.email}</h2>
+            <div class="plan">${order.plan || 'No plan on file'}</div>
+          </div>
+          <select class="status-select" data-uid="${uid}">
+            ${STAGES.map(s=>`<option value="${s}" ${order.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <h3 class="sub">Client details</h3>
+        <div class="details-block ${order.details ? '' : 'empty'}">${order.details || 'No details submitted yet.'}</div>
+        <h3 class="sub">Client uploads</h3>
+        ${fileListHTML(uploadLinks)}
+        <h3 class="sub">Delivered to client</h3>
+        ${fileListHTML(deliverLinks)}
+        <div class="upload-row">
+          <input type="file" data-uid="${uid}" class="deliver-input" multiple>
+          <button class="btn deliver-btn" data-uid="${uid}">Upload deliverable</button>
+        </div>
+        <p class="save-note" data-note="${uid}"></p>
+      `;
+      ordersEl.appendChild(card);
+    }
+
+    document.querySelectorAll('.status-select').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        await supabase.from('orders').update({ status: sel.value, updated_at: new Date().toISOString() }).eq('uid', sel.dataset.uid);
+      });
+    });
+
+    document.querySelectorAll('.deliver-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const uid = btn.dataset.uid;
+        const input = document.querySelector(`.deliver-input[data-uid="${uid}"]`);
+        const note = document.querySelector(`[data-note="${uid}"]`);
+        if (!input.files.length){ note.textContent = 'Choose a file first.'; return; }
+        btn.disabled = true;
+        note.textContent = 'Uploading…';
+        try{
+          const { data: order } = await supabase.from('orders').select('deliverables').eq('uid', uid).single();
+          const newFiles = [];
+          for (const file of input.files){
+            const path = `${uid}/${Date.now()}_${file.name}`;
+            const { error: upErr } = await supabase.storage.from('deliverables').upload(path, file);
+            if (upErr) throw upErr;
+            newFiles.push({ name: file.name, path });
+          }
+          const merged = [...(order.deliverables || []), ...newFiles];
+          const { error } = await supabase.from('orders').update({ deliverables: merged, updated_at: new Date().toISOString() }).eq('uid', uid);
+          if (error) throw error;
+          note.textContent = 'Uploaded.';
+          loadOrders();
+        }catch(err){
+          note.textContent = 'Error: ' + err.message;
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
