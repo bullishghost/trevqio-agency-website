@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /login.html
+Disallow: /plan.html
+Disallow: /dashboard.html
+Disallow: /admin.html
+Disallow: /playbook.html
+Disallow: /tech-docs.html
+Disallow: /reset-password.html
+
+Sitemap: https://trevqioagency.github.io/trevqio-agency-website/sitemap.xml

@@ -75,6 +75,7 @@
   </a>
   <div style="display:flex; align-items:center; gap:18px;">
     <a href="playbook.html" style="font-size:0.88rem; color:var(--ink-soft); text-decoration:underline;">Trial Playbook</a>
+    <a href="tech-docs.html" id="tech-docs-link" style="display:none; font-size:0.88rem; color:var(--ink-soft); text-decoration:underline;">Tech Reference</a>
     <button class="signout" id="signout">Sign out</button>
   </div>
 </header>
@@ -136,7 +137,10 @@
       else { document.getElementById('not-authorized').style.display = 'block'; return; }
     }
     document.getElementById('main-wrap').style.display = 'block';
-    if (currentRole === 'super') document.getElementById('team-section').style.display = 'block';
+    if (currentRole === 'super'){
+      document.getElementById('team-section').style.display = 'block';
+      document.getElementById('tech-docs-link').style.display = 'inline';
+    }
     loadClients();
   }
   init();
